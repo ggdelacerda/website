@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>SDS 348 Portfolio</title>
+    <link>/</link>
+    <description>Recent content on SDS 348 Portfolio</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language>
+    <lastBuildDate>Fri, 15 May 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Adiós</title>
+      <link>/blog/my-new-post/</link>
+      <pubDate>Fri, 15 May 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/blog/my-new-post/</guid>
+      <description>Hello and welcome to me trying to convince my professor that I know how to do simple python commands. Can I do it folks? I’m honestly not sure but I’m going to give it the last good ol’ college try. Prepare for the lines of code that will make you want to click out. #cringe :)))))
+#this is a python code chunk line=&amp;quot;brevity is the soul of wit&amp;quot; by=&amp;quot;w.shakespeare&amp;quot; library(reticulate) #this is an r code chunk py$line ## [1] &amp;quot;brevity is the soul of wit&amp;quot; py$by ## [1] &amp;quot;w.</description>
+    </item>
+    
+    <item>
+      <title>Melanoma_Project2</title>
+      <link>/copyofproject2_ggd265/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/copyofproject2_ggd265/</guid>
+      <description>Introduction Since it’s already summer in Texas I thought a good dataset to look at would be the skin’s worse enemy, melanomas. The dataset I chose was “melanoma” in the R package boot. It contains 205 observations with prognostic variables after patients had a complete removal of their tumors. The variables measure the following: “time”- survival time in days post-op “status”-end of study livelihood staus (1-dead,2-alive,3-death unrelated) “sex”-patients sex (1=M / 0=F) “age”- age at the time of surgery “thickness”- tumor thickness (mm) “ulcer”- ulceration indications (1=present,0=absent) Addionally the project asks for a categorical variable with 2-5 groupings so I took the age and seperated into the quarters/stages of life (0-100 broken into four quarters) and added the variable in the data frame.</description>
+    </item>
+    
+    <item>
+      <title>Melanoma_Project2</title>
+      <link>/project2/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project2/</guid>
+      <description>Introduction Since it’s already summer in Texas I thought a good dataset to look at would be the skin’s worse enemy, melanomas. The dataset I chose was “melanoma” in the R package boot. It contains 205 observations with prognostic variables after patients had a complete removal of their tumors. The variables measure the following: “time”- survival time in days post-op “status”-end of study livelihood staus (1-dead,2-alive,3-death unrelated) “sex”-patients sex (1=M / 0=F) “age”- age at the time of surgery “thickness”- tumor thickness (mm) “ulcer”- ulceration indications (1=present,0=absent) Addionally the project asks for a categorical variable with 2-5 groupings so I took the age and seperated into the quarters/stages of life (0-100 broken into four quarters) and added the variable in the data frame.</description>
+    </item>
+    
+    <item>
+      <title>Projects</title>
+      <link>/projects/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/projects/</guid>
+      <description>Projects Here are some projects where I try getting comfortable with R. Are they amazing? Probably not, but they sure kept me busy and learning during quarantine.
+With love from the exhausting year of 2020,
+Gigi
+  Playing with numbers- Women&amp;rsquo;s Tennis Association Stats
+  Melanomas and survivorship
+  </description>
+    </item>
+    
+    <item>
+      <title>WTA Matches</title>
+      <link>/project1/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project1/</guid>
+      <description>Name: Grecia De La Cerda Date: March 8th, 2020
+Introduction The two datasets I chose dealt with recorded matches within the Women’s Tennis Association during the years of 2016 and 2020. I wanted to look at popular female players and see their performance difference over four years. While age is known to impact performance, in tennis the longer you play the more experience you have the likely hood you will win more games since you are constantly up against more experienced players.</description>
+    </item>
+    
+  </channel>
+</rss>

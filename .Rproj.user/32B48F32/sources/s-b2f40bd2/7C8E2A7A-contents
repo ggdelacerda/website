@@ -1,0 +1,70 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+---
+title: "Project 1_ Women's Tennis Association Winners 2016 vs 2020"
+author: "Grecia De La Cerda (ggd265)"
+date: "3/8/2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+#Data sets
+library(tidyverse)
+library(readr)
+library(readxl)
+wta_matches_2016 <- read_csv("wta_matches_2016.csv")
+View(wta_matches_2016)
+wta_matches_2020 <- read_csv("wta_matches_2020.csv")
+View(wta_matches_2020)
+```
+
+*Introduction: *
+
+
+```{R}
+#Joining
+matches<-wta_matches_2016%>%full_join(wta_matches_2020)
+head(matches)
+```
+*Discuss *
+
+```{R}
+#Tidying
+messy<-matches%>%separate(tourney_id, into = c("year", "code"), sep= "-")%>%pivot_wider(names_from = year, values_from = code)
+tidy_matches<-messy%>%pivot_longer(c("2016","2020"),names_to = "year", values_to = "code")
+```
+
+```{r}
+#Wrangling
+wtaplayers<-tidy_matches%>%rename("country"=winner_ioc)%>%
+  filter(country=="USA")%>%
+  select(10,1,49,50,2,7,11:14,26,45,46)%>%
+  arrange(year)%>%
+  mutate(rank_point_cat=case_when(winner_rank_points>6700~ "high", 3300<=winner_rank_points & winner_rank_points<=6700 ~ "med", winner_rank_points<3300~"low"))%>%
+  group_by(winner_name,tourney_name,year,surface,country,winner_age,winner_rank,winner_rank_points,rank_point_cat)%>%
+  summarize(mean_age=mean(winner_age,na.rm=T), 
+            sd_age=sd(winner_age,na.rm = T))%>%glimpse()
+
+```
+
+```{r}
+#Visualizing
+library(ggplot2)
+players<-wtaplayers%>%group_by(winner_name)%>%
+  summarize(mean_age=mean(winner_age,na.rm=T), 
+            sd_age=sd(winner_age,na.rm = T))%>%glimpse()
+
+ggplot(data=wtaplayers,
+aes(x=winner_rank,y=rank_point_cat,fill=winner_rank_points))+ geom_tile()
+```
+
+```{r}
+#Dimentionality Reduction
+```
+
+```{R}

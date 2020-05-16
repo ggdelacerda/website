@@ -1,0 +1,236 @@
+---
+html_document:
+  toc: yes
+  toc_float:
+    collapsed: no
+    smooth_scroll: yes
+author: "Grecia De La Cerda"
+date: "4/30/2020"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+title: "Melanoma_Project2"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,fig.align="center",warning=FALSE,message=FALSE,fig.width=8, fig.height=5, linewidth=60)
+options(tibble.width = 100,width = 100)
+library(tidyverse)
+```
+
+
+##Introduction
+  Since it's already summer in Texas I thought a good dataset to look at would be the skin's worse enemy, melanomas. The dataset I chose was "melanoma" in the R package boot. It contains 205 observations with prognostic variables after patients had a complete removal of their tumors. The variables measure the following:
+  "time"- survival time in days post-op
+  "status"-end of study livelihood staus (1-dead,2-alive,3-death unrelated)
+  "sex"-patients sex (1=M / 0=F)
+  "age"- age at the time of surgery
+  "thickness"- tumor thickness (mm)
+  "ulcer"- ulceration indications
+  (1=present,0=absent)
+Addionally the project asks for a categorical variable with 2-5 groupings so I took the age and seperated into the quarters/stages of life (0-100 broken into four quarters) and added the variable in the data frame. 
+
+```{r}
+#Dataset
+library(tidyverse)
+library(boot)
+data(melanoma)
+melanoma<-as.data.frame(melanoma)
+attach(melanoma)
+quarter<-cut(age ,breaks =  c(0,25,50,75,100), labels = c("first","second","third","fourth"), right=FALSE)
+melanoma$quarter<-quarter
+```
+
+## MANOVA
+
+I ran a MANOVA to test if time or tumor thickness differed by life stage ("quarter") and it came back with signifant results (p-value= 0.00469). I then did a univariate ANOVA from my MANOVA object to find that the survival time in days, after the tumor removal operation, differs by life stage.
+
+There was a total of 6 tests done (1 MANOVA, 2 ANOVAs, 3 post hoc t tests on significant data) and a calculated type I error equating to 0.265, roughly 27%. I then conducted a bonferonni correction to get a cut off of 0.008.
+
+Assumptions for MANOVA were not met because the data rejected the null hypothesis that the DVs (time, thickness) are equal. For the ANOVA, since the variable 'time' was significant, the null hypothesis was also rejected of equal groupings. Then running the t test comparing time against different quarters, significant difference was found between the following quarters:
+- first quarter vs. fourth quarter 
+- second quarter vs. third quarter 
+- second quarter vs. fourth quarter
+
+```{r}
+#Manova code
+
+man1<-manova(cbind(time,thickness)~quarter)
+summary(man1)
+summary.aov(man1)
+pairwise.t.test(time,quarter, p.adj="none")
+1-.95^6
+.05/6
+```
+
+##Randomization Test and Plot
+Much like the MANOVA, using the PERMANOVA randomization test, it confirms my findings in the last chunk of code. Once again, we reject the null hypothesis of equal euclidean distances per group. 
+
+```{r}
+#Randomization test code
+
+library(vegan)
+dists<-melanoma%>%select(time, thickness)%>%dist()
+adonis(dists~quarter,data=melanoma)
+
+#plot
+F_obs<-5.8546
+
+SST<-sum(dists^2)/205
+
+Fs<-replicate(1000,{
+  new<-melanoma%>%mutate(quarter=sample(quarter))
+
+  SSW<-new%>%group_by(quarter)%>%select(time,thickness)%>%do(d=dist(.[2:3], "euclidean"))%>%ungroup()%>%summarize(sum(d[[1]]^2)/51.25+sum(d[[2]]^2)/51.25+sum(d[[3]]^2)/51.25 + sum(d[[4]]^2)/51.25)%>%pull
+  
+ ((SST-SSW)/3)/(SSW/201) 
+})
+
+{hist(Fs,prob=T);abline(v=F_obs, col="red", add=T)}
+
+mean(Fs>F_obs)
+```
+
+##Linear Regression
+The coefficients after mean centering the data
+lead to the creation of this following model:
+ulcer= 0.400+0.062(thickness_c)+0.092(sex)+0.014(thickness_c:sex). The proportion of the variation in the outcome of my model is the adjusted R squared value from the mean centered fitted model of 0.178.
+
+```{r}
+#Linear regression code
+library(sandwich)
+library(lmtest)
+fit<-lm(ulcer~ thickness*sex, data=melanoma)
+summary(fit)
+coef(fit)
+mean(thickness)
+data.frame(thickness_c=melanoma$thickness-mean(melanoma$thickness))
+melanoma$thickness_c<-melanoma$thickness-mean(melanoma$thickness)
+fit1<-lm(ulcer~thickness_c*sex, data=melanoma)
+summary(fit1)
+
+
+qplot(x=thickness_c, y=ulcer, color= sex, data= melanoma)+
+  stat_smooth(method = "lm", se= FALSE, fullrange = TRUE)
+
+resids<-fit1$residuals
+fitvals<-fit1$fitted.values
+ggplot()+geom_point(aes(fitvals,resids))+geom_hline(yintercept = 0, col="red")
+
+bptest(fit1)
+ks.test(resids, "pnorm", sd=sd(resids))
+coeftest(fit1, vcov. = vcovHC(fit1))[,1:2]
+```
+
+##Bootstrapped SE 
+
+```{r}
+#Bootstrapped SE, CIs Code
+boot_dat<-sample_frac(melanoma,replace = T)
+samp_distn<-replicate(5000, {
+  boot_dat<-sample_frac(melanoma, replace= T)
+  fit<-lm(ulcer~thickness_c*sex,data=melanoma)
+  coef(fit)
+})
+
+samp_distn%>%t%>%as.data.frame%>%gather%>%group_by(key)%>%summarize(lower=quantile(value,.025),upper=quantile(value,.975))
+
+```
+
+##Logistic Regression 
+The log(odds) model from the coefficients looks as follows:log(odds)= -1.708+0.448(thickness)+0.0048(age)
+Holding age constant, going up one unit of tumor thickness increases the logit score by 0.448.The accuracy rate is 0.7560976. The TPR or the probability of detecting ulceration correctly is 53/90=0.5888889. The TNR rate is 102/115= 0.8869565. The PPV rate is 53/66= 0.8030303. For the calculated AUC the value is 0.820, making it a good enough model. After doing a CV, looking the average out of sample Accuracy, Sensitivity, and Recall, the model looks a slightly worse out of the original sample. 
+
+```{r}
+#Logistic Regression Code
+fit2<-glm(ulcer~thickness + age, data= melanoma, family = "binomial")
+coeftest(fit2)
+coef(fit2)%>%round(5)%>%data.frame
+
+probs<- predict(fit2,type="response")
+table(predict=as.numeric(probs>.5), truth=melanoma$ulcer)%>%addmargins
+melanoma$logit<-predict(fit2,type="link")
+(102+53)/205
+53/90
+102/115
+53/66
+
+data<-melanoma%>%
+  mutate(ulcer_present= case_when(
+    ulcer==1 ~ "present", ulcer==0 ~ "absent"))
+melanoma<-data
+
+melanoma%>%ggplot()+geom_density(aes(logit,color=ulcer,fill=ulcer_present), alpha=.4)+
+  theme(legend.position=c(.85,.85))+geom_vline(xintercept=0)+xlab("logit (log-odds)")+
+  geom_rug(aes(logit,color=ulcer))+
+  geom_text(x=-5,y=.07,label="TN = 102")+
+  geom_text(x=-1.75,y=.008,label="FN = 37")+
+  geom_text(x=1,y=.006,label="FP = 13")+
+  geom_text(x=5,y=.04,label="TP = 53")
+
+#ROC and AUC
+library(plotROC)
+ROCplot<-ggplot(melanoma)+geom_roc(aes(d=ulcer_present,m=probs), n.cuts=0) 
+ROCplot
+calc_auc(ROCplot)
+
+#extra
+class_diag <- function(probs,truth){
+  
+  #CONFUSION MATRIX: CALCULATE ACCURACY, TPR, TNR, PPV
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth)
+  acc=sum(diag(tab))/sum(tab)
+  sens=tab[2,2]/colSums(tab)[2]
+  spec=tab[1,1]/colSums(tab)[1]
+  ppv=tab[2,2]/rowSums(tab)[2]
+
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE) truth<-as.numeric(truth)-1
+  
+  #CALCULATE EXACT AUC
+  ord<-order(probs, decreasing=TRUE)
+  probs <- probs[ord]; truth <- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+  TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+  
+  n <- length(TPR)
+  auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,auc)
+}
+class_diag(probs,ulcer)
+library(pROC)
+auc(ulcer,probs)
+
+#CV
+set.seed(1234)
+k= 10 
+data<-melanoma[sample(nrow(melanoma)),] 
+folds<-cut(seq(1:nrow(melanoma)),breaks=k,labels=F) 
+diags<-NULL
+for(i in 1:k){
+train<-data[folds!=i,]
+test<-data[folds==i,]
+truth<-test$ulcer 
+fit<-glm(ulcer~thickness+age,data=train,family="binomial")
+probs<-predict(fit,newdata = test,type="response")
+
+diags<-rbind(diags,class_diag(probs,truth))
+}
+
+summarize_all(diags,mean)
+```
+
+##LASSO
+
+The variables that were retained and used for the 10-fold CV at the end (that did offer a better fit) was status, age, and ulcer for time of survival post operation. 
+```{r}
+#LASSO Code
+#The following code was removed due to errors knitting to html. Sorry for the inconvenience.
+```
+
+

@@ -1,0 +1,15 @@
+]0;/stor/home/ggd265/gigi_website]0;ggd265@educcomp01: ~/gigi_website[01;32mggd265@educcomp01[00m:[01;34m~/gigi_website[00m$ [K]0;ggd265@educcomp01: ~/gigi_website[01;32mggd265@educcomp01[00m:[01;34m~/gigi_website[00m$ touch myfil e.py
+]0;/stor/home/ggd265/gigi_website]0;ggd265@educcomp01: ~/gigi_website[01;32mggd265@educcomp01[00m:[01;34m~/gigi_website[00m$ [K]0;ggd265@educcomp01: ~/gigi_website[01;32mggd265@educcomp01[00m:[01;34m~/gigi_website[00m$ ls
+config.toml         index.Rmd  [0m[01;34mstatic[0m
+[01;34mcontent[0m             myfile.py  [01;34mthemes[0m
+gigi_website.Rproj  [01;34mpublic[0m
+]0;/stor/home/ggd265/gigi_website]0;ggd265@educcomp01: ~/gigi_website[01;32mggd265@educcomp01[00m:[01;34m~/gigi_website[00m$ git init
+Initialized empty Git repository in /stor/home/ggd265/gigi_website/.git/
+]0;/stor/home/ggd265/gigi_website]0;ggd265@educcomp01: ~/gigi_website[01;32mggd265@educcomp01[00m:[01;34m~/gigi_website[00m$ ls -a
+[0m[01;34m.[0m                   index.Rmd
+[01;34m..[0m                  myfile.py
+config.toml         [01;34mpublic[0m
+[01;34mcontent[0m             [01;34m.Rproj.user[0m
+gigi_website.Rproj  [01;34mstatic[0m
+[01;34m.git[0m                [01;34mthemes[0m
+]0;/stor/home/ggd265/gigi_website]0;ggd265@educcomp01: ~/gigi_website[01;32mggd265@educcomp01[00m:[01;34m~/gigi_website[00m$ git add .

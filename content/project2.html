@@ -1,0 +1,538 @@
+---
+html_document:
+  toc: yes
+  toc_float:
+    collapsed: no
+    smooth_scroll: yes
+author: "Grecia De La Cerda"
+date: "4/30/2020"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+title: "Melanoma_Project2"
+---
+
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>Since it’s already summer in Texas I thought a good dataset to look at would be the skin’s worse enemy, melanomas. The dataset I chose was “melanoma” in the R package boot. It contains 205 observations with prognostic variables after patients had a complete removal of their tumors. The variables measure the following: “time”- survival time in days post-op “status”-end of study livelihood staus (1-dead,2-alive,3-death unrelated) “sex”-patients sex (1=M / 0=F) “age”- age at the time of surgery “thickness”- tumor thickness (mm) “ulcer”- ulceration indications (1=present,0=absent) Addionally the project asks for a categorical variable with 2-5 groupings so I took the age and seperated into the quarters/stages of life (0-100 broken into four quarters) and added the variable in the data frame.</p>
+<pre class="r"><code>#Dataset
+library(tidyverse)
+library(boot)
+data(melanoma)
+melanoma&lt;-as.data.frame(melanoma)
+attach(melanoma)
+quarter&lt;-cut(age ,breaks =  c(0,25,50,75,100), labels = c(&quot;first&quot;,&quot;second&quot;,&quot;third&quot;,&quot;fourth&quot;), right=FALSE)
+melanoma$quarter&lt;-quarter</code></pre>
+</div>
+<div id="manova" class="section level2">
+<h2>MANOVA</h2>
+<p>I ran a MANOVA to test if time or tumor thickness differed by life stage (“quarter”) and it came back with signifant results (p-value= 0.00469). I then did a univariate ANOVA from my MANOVA object to find that the survival time in days, after the tumor removal operation, differs by life stage.</p>
+<p>There was a total of 6 tests done (1 MANOVA, 2 ANOVAs, 3 post hoc t tests on significant data) and a calculated type I error equating to 0.265, roughly 27%. I then conducted a bonferonni correction to get a cut off of 0.008.</p>
+<p>Assumptions for MANOVA were not met because the data rejected the null hypothesis that the DVs (time, thickness) are equal. For the ANOVA, since the variable ‘time’ was significant, the null hypothesis was also rejected of equal groupings. Then running the t test comparing time against different quarters, significant difference was found between the following quarters: - first quarter vs. fourth quarter - second quarter vs. third quarter - second quarter vs. fourth quarter</p>
+<pre class="r"><code>#Manova code
+
+man1&lt;-manova(cbind(time,thickness)~quarter)
+summary(man1)</code></pre>
+<pre><code>##            Df   Pillai approx F num Df den Df  Pr(&gt;F)   
+## quarter     3 0.090497   3.1753      6    402 0.00469 **
+## Residuals 201                                           
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>summary.aov(man1)</code></pre>
+<pre><code>##  Response time :
+##              Df    Sum Sq Mean Sq F value    Pr(&gt;F)    
+## quarter       3  20639724 6879908  5.8546 0.0007481 ***
+## Residuals   201 236200385 1175126                      
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+##  Response thickness :
+##              Df  Sum Sq Mean Sq F value Pr(&gt;F)
+## quarter       3   46.83  15.611  1.8035 0.1478
+## Residuals   201 1739.85   8.656</code></pre>
+<pre class="r"><code>pairwise.t.test(time,quarter, p.adj=&quot;none&quot;)</code></pre>
+<pre><code>## 
+##  Pairwise comparisons using t tests with pooled SD 
+## 
+## data:  time and quarter 
+## 
+##        first   second  third  
+## second 0.62240 -       -      
+## third  0.06170 0.00676 -      
+## fourth 0.00361 0.00055 0.04091
+## 
+## P value adjustment method: none</code></pre>
+<pre class="r"><code>1-.95^6</code></pre>
+<pre><code>## [1] 0.2649081</code></pre>
+<pre class="r"><code>.05/6</code></pre>
+<pre><code>## [1] 0.008333333</code></pre>
+</div>
+<div id="randomization-test-and-plot" class="section level2">
+<h2>Randomization Test and Plot</h2>
+<p>Much like the MANOVA, using the PERMANOVA randomization test, it confirms my findings in the last chunk of code. Once again, we reject the null hypothesis of equal euclidean distances per group.</p>
+<pre class="r"><code>#Randomization test code
+
+library(vegan)
+dists&lt;-melanoma%&gt;%select(time, thickness)%&gt;%dist()
+adonis(dists~quarter,data=melanoma)</code></pre>
+<pre><code>## 
+## Call:
+## adonis(formula = dists ~ quarter, data = melanoma) 
+## 
+## Permutation: free
+## Number of permutations: 999
+## 
+## Terms added sequentially (first to last)
+## 
+##            Df SumsOfSqs MeanSqs F.Model      R2 Pr(&gt;F)   
+## quarter     3  20639771 6879924  5.8546 0.08036  0.003 **
+## Residuals 201 236202125 1175135         0.91964          
+## Total     204 256841895                 1.00000          
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>#plot
+F_obs&lt;-5.8546
+
+SST&lt;-sum(dists^2)/205
+
+Fs&lt;-replicate(1000,{
+  new&lt;-melanoma%&gt;%mutate(quarter=sample(quarter))
+
+  SSW&lt;-new%&gt;%group_by(quarter)%&gt;%select(time,thickness)%&gt;%do(d=dist(.[2:3], &quot;euclidean&quot;))%&gt;%ungroup()%&gt;%summarize(sum(d[[1]]^2)/51.25+sum(d[[2]]^2)/51.25+sum(d[[3]]^2)/51.25 + sum(d[[4]]^2)/51.25)%&gt;%pull
+  
+ ((SST-SSW)/3)/(SSW/201) 
+})
+
+{hist(Fs,prob=T);abline(v=F_obs, col=&quot;red&quot;, add=T)}</code></pre>
+<p><img src="/project2_files/figure-html/unnamed-chunk-3-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mean(Fs&gt;F_obs)</code></pre>
+<pre><code>## [1] 0</code></pre>
+</div>
+<div id="linear-regression" class="section level2">
+<h2>Linear Regression</h2>
+<p>The coefficients after mean centering the data lead to the creation of this following model: ulcer= 0.400+0.062(thickness_c)+0.092(sex)+0.014(thickness_c:sex). The proportion of the variation in the outcome of my model is the adjusted R squared value from the mean centered fitted model of 0.178.</p>
+<pre class="r"><code>#Linear regression code
+library(sandwich)
+library(lmtest)
+fit&lt;-lm(ulcer~ thickness*sex, data=melanoma)
+summary(fit)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = ulcer ~ thickness * sex, data = melanoma)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -1.3828 -0.3196 -0.2578  0.4611  0.7721 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)    0.21788    0.05423   4.018 8.30e-05 ***
+## thickness      0.06239    0.01465   4.260 3.14e-05 ***
+## sex            0.05236    0.09451   0.554    0.580    
+## thickness:sex  0.01350    0.02183   0.619    0.537    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 0.4511 on 201 degrees of freedom
+## Multiple R-squared:   0.19,  Adjusted R-squared:  0.1779 
+## F-statistic: 15.71 on 3 and 201 DF,  p-value: 3.222e-09</code></pre>
+<pre class="r"><code>coef(fit)</code></pre>
+<pre><code>##   (Intercept)     thickness           sex thickness:sex 
+##    0.21788331    0.06239172    0.05236220    0.01350075</code></pre>
+<pre class="r"><code>mean(thickness)</code></pre>
+<pre><code>## [1] 2.919854</code></pre>
+<pre class="r"><code>data.frame(thickness_c=melanoma$thickness-mean(melanoma$thickness))</code></pre>
+<pre><code>##     thickness_c
+## 1    3.84014634
+## 2   -2.26985366
+## 3   -1.57985366
+## 4   -0.01985366
+## 5    9.16014634
+## 6    1.92014634
+## 7    2.24014634
+## 8    0.30014634
+## 9    9.96014634
+## 10   4.49014634
+## 11   1.27014634
+## 12  -2.75985366
+## 13   0.95014634
+## 14   1.92014634
+## 15  -0.49985366
+## 16   9.64014634
+## 17   2.88014634
+## 18   4.14014634
+## 19   2.56014634
+## 20   4.81014634
+## 21  10.93014634
+## 22  -0.57985366
+## 23   1.27014634
+## 24   1.12014634
+## 25   1.92014634
+## 26  -2.59985366
+## 27   5.62014634
+## 28  -0.33985366
+## 29   0.64014634
+## 30   0.62014634
+## 31  -1.94985366
+## 32   1.91014634
+## 33  -1.29985366
+## 34   3.52014634
+## 35  11.74014634
+## 36  -0.33985366
+## 37   0.95014634
+## 38   0.62014634
+## 39  -1.57985366
+## 40  -0.67985366
+## 41   0.95014634
+## 42   0.62014634
+## 43  14.50014634
+## 44  -1.62985366
+## 45   0.30014634
+## 46  -1.62985366
+## 47   1.59014634
+## 48   5.46014634
+## 49  -0.97985366
+## 50  -2.75985366
+## 51  -0.33985366
+## 52  -1.62985366
+## 53  -2.75985366
+## 54  -1.29985366
+## 55  -1.62985366
+## 56  -0.81985366
+## 57  -2.59985366
+## 58  -2.10985366
+## 59  -1.78985366
+## 60   2.24014634
+## 61  -1.29985366
+## 62  -1.54985366
+## 63  -2.67985366
+## 64  -2.10985366
+## 65  -1.62985366
+## 66  -1.62985366
+## 67  -1.94985366
+## 68  -1.78985366
+## 69   2.88014634
+## 70  -1.62985366
+## 71  -2.43985366
+## 72  -1.29985366
+## 73  -0.65985366
+## 74  -2.33985366
+## 75  -1.94985366
+## 76  -0.33985366
+## 77  -2.10985366
+## 78   0.62014634
+## 79  -1.94985366
+## 80  -1.13985366
+## 81  -0.97985366
+## 82  -1.62985366
+## 83   0.30014634
+## 84  -1.38985366
+## 85  -1.62985366
+## 86  -1.29985366
+## 87  -1.29985366
+## 88  -2.59985366
+## 89   1.92014634
+## 90  -1.62985366
+## 91  -1.94985366
+## 92   0.14014634
+## 93   0.62014634
+## 94  -1.29985366
+## 95  -0.33985366
+## 96  -0.97985366
+## 97  -2.10985366
+## 98   4.81014634
+## 99  -1.94985366
+## 100  9.96014634
+## 101 -0.33985366
+## 102  1.17014634
+## 103 -2.27985366
+## 104 -1.94985366
+## 105  0.30014634
+## 106 -1.29985366
+## 107  0.95014634
+## 108 -2.59985366
+## 109 -2.59985366
+## 110  0.30014634
+## 111 -0.65985366
+## 112  0.14014634
+## 113 -0.33985366
+## 114 -2.26985366
+## 115 -1.78985366
+## 116 -2.10985366
+## 117 -1.94985366
+## 118 -1.15985366
+## 119 -0.97985366
+## 120 -2.26985366
+## 121 -1.94985366
+## 122  2.72014634
+## 123  6.74014634
+## 124 -2.81985366
+## 125  2.56014634
+## 126 -0.65985366
+## 127  1.91014634
+## 128 -1.94985366
+## 129 -1.94985366
+## 130  2.24014634
+## 131 -2.10985366
+## 132 -0.01985366
+## 133  0.95014634
+## 134 -0.97985366
+## 135 -2.75985366
+## 136 -2.27985366
+## 137 -0.65985366
+## 138 -1.46985366
+## 139  1.90014634
+## 140 -1.62985366
+## 141  4.97014634
+## 142 -2.10985366
+## 143  0.62014634
+## 144 -1.62985366
+## 145 -2.27985366
+## 146  0.30014634
+## 147 -1.46985366
+## 148 -2.43985366
+## 149 -0.97985366
+## 150 -2.75985366
+## 151 -2.75985366
+## 152 -1.62985366
+## 153 -0.97985366
+## 154  0.62014634
+## 155 -2.10985366
+## 156 -2.26985366
+## 157  4.17014634
+## 158 -2.75985366
+## 159 -1.29985366
+## 160 -1.29985366
+## 161 -1.62985366
+## 162  3.20014634
+## 163 -2.43985366
+## 164 -2.27985366
+## 165  0.30014634
+## 166 -0.97985366
+## 167 -0.33985366
+## 168 -0.33985366
+## 169 -2.10985366
+## 170 -2.10985366
+## 171  0.30014634
+## 172 -2.59985366
+## 173  0.30014634
+## 174 -0.17985366
+## 175  1.92014634
+## 176 -1.29985366
+## 177 -2.26985366
+## 178 -1.46985366
+## 179 -2.26985366
+## 180 -1.62985366
+## 181 -1.29985366
+## 182  0.62014634
+## 183  0.30014634
+## 184 -2.26985366
+## 185 -1.88985366
+## 186  4.17014634
+## 187 -1.62985366
+## 188 -2.26985366
+## 189 -1.13985366
+## 190  9.32014634
+## 191  5.14014634
+## 192 -2.10985366
+## 193 -0.81985366
+## 194  0.95014634
+## 195 -2.26985366
+## 196 -0.97985366
+## 197 -2.26985366
+## 198 -0.81985366
+## 199 -0.97985366
+## 200 -1.78985366
+## 201  4.14014634
+## 202  3.20014634
+## 203 -2.43985366
+## 204 -0.65985366
+## 205 -0.01985366</code></pre>
+<pre class="r"><code>melanoma$thickness_c&lt;-melanoma$thickness-mean(melanoma$thickness)
+fit1&lt;-lm(ulcer~thickness_c*sex, data=melanoma)
+summary(fit1)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = ulcer ~ thickness_c * sex, data = melanoma)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -1.3828 -0.3196 -0.2578  0.4611  0.7721 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)      0.40006    0.04068   9.833  &lt; 2e-16 ***
+## thickness_c      0.06239    0.01465   4.260 3.14e-05 ***
+## sex              0.09178    0.06600   1.391    0.166    
+## thickness_c:sex  0.01350    0.02183   0.619    0.537    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 0.4511 on 201 degrees of freedom
+## Multiple R-squared:   0.19,  Adjusted R-squared:  0.1779 
+## F-statistic: 15.71 on 3 and 201 DF,  p-value: 3.222e-09</code></pre>
+<pre class="r"><code>qplot(x=thickness_c, y=ulcer, color= sex, data= melanoma)+
+  stat_smooth(method = &quot;lm&quot;, se= FALSE, fullrange = TRUE)</code></pre>
+<p><img src="/project2_files/figure-html/unnamed-chunk-4-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>resids&lt;-fit1$residuals
+fitvals&lt;-fit1$fitted.values
+ggplot()+geom_point(aes(fitvals,resids))+geom_hline(yintercept = 0, col=&quot;red&quot;)</code></pre>
+<p><img src="/project2_files/figure-html/unnamed-chunk-4-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>bptest(fit1)</code></pre>
+<pre><code>## 
+##  studentized Breusch-Pagan test
+## 
+## data:  fit1
+## BP = 10.826, df = 3, p-value = 0.0127</code></pre>
+<pre class="r"><code>ks.test(resids, &quot;pnorm&quot;, sd=sd(resids))</code></pre>
+<pre><code>## 
+##  One-sample Kolmogorov-Smirnov test
+## 
+## data:  resids
+## D = 0.26674, p-value = 4.282e-13
+## alternative hypothesis: two-sided</code></pre>
+<pre class="r"><code>coeftest(fit1, vcov. = vcovHC(fit1))[,1:2]</code></pre>
+<pre><code>##                   Estimate Std. Error
+## (Intercept)     0.40005801 0.04312965
+## thickness_c     0.06239172 0.01748523
+## sex             0.09178241 0.06542109
+## thickness_c:sex 0.01350075 0.03141322</code></pre>
+</div>
+<div id="bootstrapped-se" class="section level2">
+<h2>Bootstrapped SE</h2>
+<pre class="r"><code>#Bootstrapped SE, CIs Code
+boot_dat&lt;-sample_frac(melanoma,replace = T)
+samp_distn&lt;-replicate(5000, {
+  boot_dat&lt;-sample_frac(melanoma, replace= T)
+  fit&lt;-lm(ulcer~thickness_c*sex,data=melanoma)
+  coef(fit)
+})
+
+samp_distn%&gt;%t%&gt;%as.data.frame%&gt;%gather%&gt;%group_by(key)%&gt;%summarize(lower=quantile(value,.025),upper=quantile(value,.975))</code></pre>
+<pre><code>## # A tibble: 4 x 3
+##   key              lower  upper
+##   &lt;chr&gt;            &lt;dbl&gt;  &lt;dbl&gt;
+## 1 (Intercept)     0.400  0.400 
+## 2 sex             0.0918 0.0918
+## 3 thickness_c     0.0624 0.0624
+## 4 thickness_c:sex 0.0135 0.0135</code></pre>
+</div>
+<div id="logistic-regression" class="section level2">
+<h2>Logistic Regression</h2>
+<p>The log(odds) model from the coefficients looks as follows:log(odds)= -1.708+0.448(thickness)+0.0048(age) Holding age constant, going up one unit of tumor thickness increases the logit score by 0.448.The accuracy rate is 0.7560976. The TPR or the probability of detecting ulceration correctly is 53/90=0.5888889. The TNR rate is 102/115= 0.8869565. The PPV rate is 53/66= 0.8030303. For the calculated AUC the value is 0.820, making it a good enough model. After doing a CV, looking the average out of sample Accuracy, Sensitivity, and Recall, the model looks a slightly worse out of the original sample.</p>
+<pre class="r"><code>#Logistic Regression Code
+fit2&lt;-glm(ulcer~thickness + age, data= melanoma, family = &quot;binomial&quot;)
+coeftest(fit2)</code></pre>
+<pre><code>## 
+## z test of coefficients:
+## 
+##               Estimate Std. Error z value  Pr(&gt;|z|)    
+## (Intercept) -1.7082538  0.5445886 -3.1368  0.001708 ** 
+## thickness    0.4482084  0.0878074  5.1045 3.318e-07 ***
+## age          0.0048853  0.0096873  0.5043  0.614051    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>coef(fit2)%&gt;%round(5)%&gt;%data.frame</code></pre>
+<pre><code>##                    .
+## (Intercept) -1.70825
+## thickness    0.44821
+## age          0.00489</code></pre>
+<pre class="r"><code>probs&lt;- predict(fit2,type=&quot;response&quot;)
+table(predict=as.numeric(probs&gt;.5), truth=melanoma$ulcer)%&gt;%addmargins</code></pre>
+<pre><code>##        truth
+## predict   0   1 Sum
+##     0   102  37 139
+##     1    13  53  66
+##     Sum 115  90 205</code></pre>
+<pre class="r"><code>melanoma$logit&lt;-predict(fit2,type=&quot;link&quot;)
+(102+53)/205</code></pre>
+<pre><code>## [1] 0.7560976</code></pre>
+<pre class="r"><code>53/90</code></pre>
+<pre><code>## [1] 0.5888889</code></pre>
+<pre class="r"><code>102/115</code></pre>
+<pre><code>## [1] 0.8869565</code></pre>
+<pre class="r"><code>53/66</code></pre>
+<pre><code>## [1] 0.8030303</code></pre>
+<pre class="r"><code>data&lt;-melanoma%&gt;%
+  mutate(ulcer_present= case_when(
+    ulcer==1 ~ &quot;present&quot;, ulcer==0 ~ &quot;absent&quot;))
+melanoma&lt;-data
+
+melanoma%&gt;%ggplot()+geom_density(aes(logit,color=ulcer,fill=ulcer_present), alpha=.4)+
+  theme(legend.position=c(.85,.85))+geom_vline(xintercept=0)+xlab(&quot;logit (log-odds)&quot;)+
+  geom_rug(aes(logit,color=ulcer))+
+  geom_text(x=-5,y=.07,label=&quot;TN = 102&quot;)+
+  geom_text(x=-1.75,y=.008,label=&quot;FN = 37&quot;)+
+  geom_text(x=1,y=.006,label=&quot;FP = 13&quot;)+
+  geom_text(x=5,y=.04,label=&quot;TP = 53&quot;)</code></pre>
+<p><img src="/project2_files/figure-html/unnamed-chunk-6-1.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>#ROC and AUC
+library(plotROC)
+ROCplot&lt;-ggplot(melanoma)+geom_roc(aes(d=ulcer_present,m=probs), n.cuts=0) 
+ROCplot</code></pre>
+<p><img src="/project2_files/figure-html/unnamed-chunk-6-2.png" width="768" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>calc_auc(ROCplot)</code></pre>
+<pre><code>##   PANEL group       AUC
+## 1     1    -1 0.8201449</code></pre>
+<pre class="r"><code>#extra
+class_diag &lt;- function(probs,truth){
+  
+  #CONFUSION MATRIX: CALCULATE ACCURACY, TPR, TNR, PPV
+  tab&lt;-table(factor(probs&gt;.5,levels=c(&quot;FALSE&quot;,&quot;TRUE&quot;)),truth)
+  acc=sum(diag(tab))/sum(tab)
+  sens=tab[2,2]/colSums(tab)[2]
+  spec=tab[1,1]/colSums(tab)[1]
+  ppv=tab[2,2]/rowSums(tab)[2]
+
+  if(is.numeric(truth)==FALSE &amp; is.logical(truth)==FALSE) truth&lt;-as.numeric(truth)-1
+  
+  #CALCULATE EXACT AUC
+  ord&lt;-order(probs, decreasing=TRUE)
+  probs &lt;- probs[ord]; truth &lt;- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup&lt;-c(probs[-1]&gt;=probs[-length(probs)], FALSE)
+  TPR&lt;-c(0,TPR[!dup],1); FPR&lt;-c(0,FPR[!dup],1)
+  
+  n &lt;- length(TPR)
+  auc&lt;- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,auc)
+}
+class_diag(probs,ulcer)</code></pre>
+<pre><code>##         acc      sens      spec       ppv       auc
+## 1 0.7560976 0.5888889 0.8869565 0.8030303 0.8201449</code></pre>
+<pre class="r"><code>library(pROC)
+auc(ulcer,probs)</code></pre>
+<pre><code>## Area under the curve: 0.8201</code></pre>
+<pre class="r"><code>#CV
+set.seed(1234)
+k= 10 
+data&lt;-melanoma[sample(nrow(melanoma)),] 
+folds&lt;-cut(seq(1:nrow(melanoma)),breaks=k,labels=F) 
+diags&lt;-NULL
+for(i in 1:k){
+train&lt;-data[folds!=i,]
+test&lt;-data[folds==i,]
+truth&lt;-test$ulcer 
+fit&lt;-glm(ulcer~thickness+age,data=train,family=&quot;binomial&quot;)
+probs&lt;-predict(fit,newdata = test,type=&quot;response&quot;)
+
+diags&lt;-rbind(diags,class_diag(probs,truth))
+}
+
+summarize_all(diags,mean)</code></pre>
+<pre><code>##         acc     sens      spec       ppv       auc
+## 1 0.7509524 0.569725 0.8969048 0.7992857 0.8100212</code></pre>
+</div>
+<div id="lasso" class="section level2">
+<h2>LASSO</h2>
+<p>The variables that were retained and used for the 10-fold CV at the end (that did offer a better fit) was status, age, and ulcer for time of survival post operation.</p>
+<pre class="r"><code>#LASSO Code
+#The following code was removed due to errors knitting to html. Sorry for the inconvenience.</code></pre>
+</div>

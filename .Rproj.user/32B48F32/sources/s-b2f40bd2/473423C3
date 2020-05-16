@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1589577715589.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "473423C3",
+    "lastKnownWriteTime" : 1589587480,
+    "last_content_update" : 1589587480638,
+    "path" : "~/gigi_website/config.toml",
+    "project_path" : "config.toml",
+    "properties" : {
+        "cursorPosition" : "36,20",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "toml"
+}

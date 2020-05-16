@@ -1,0 +1,115 @@
+---
+title: "WTA Matches"
+output:
+date:'2020-05-13'
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F,
+tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+Name: Grecia De La Cerda
+Date: March 8th, 2020
+
+
+## Introduction
+The two datasets I chose dealt with recorded matches within the Women's Tennis Association during the years of 2016 and 2020. I wanted to look at popular female players and see their performance difference over four years. While age is known to impact performance, in tennis the longer you play the more experience you have the likely hood you will win more games since you are constantly up against more experienced players. The variables in the data include Player names, tournament, year (2016 vs. 2020), surface, country, and various match play statistics. 
+
+```{r}
+#Data sets
+library(tidyverse)
+library(readr)
+library(httr)
+wta_matches_2016 <-read.csv("wta_matches_2016.csv")
+wta_matches_2020 <- read_csv("wta_matches_2020.csv")
+```
+
+```{r}
+#Joining
+matches<-wta_matches_2016%>%full_join(wta_matches_2020)
+head(matches)
+```
+No cases were dropped but the problem with this is that it became vary difficult to tidy later on. 
+
+```{r}
+#Tidying
+
+messy<-matches%>%
+  separate(tourney_id, into = c("year", "code"), sep= "-")%>%
+  pivot_wider(names_from = year, values_from = code)
+
+tidy_matches<-messy%>%
+  pivot_longer(c("2016","2020"),names_to = "year", values_to = "code")
+```
+
+Since the data I merged was already tidy and continued to be tidy after the merge I took this opportunity to "mess up" the data to make it tidy again. So to make the data "messy" I chose a simple variable like tourney_id and used pivot_wider, that way I could track what I messed up so I could double check if I it tidyied back into it's original format using pivot_longer.
+
+```{r}
+#Wrangling
+wtaplayers<-tidy_matches%>%
+  rename("country"=winner_ioc)%>%
+  filter(tourney_name=="Wimbledon")%>%
+  select(10,1,49,50,2,7,11:14,26,45,46)%>%
+  arrange(year)%>%
+  mutate(rank_point_cat=case_when(winner_rank_points>6700~ "high", 3300<=winner_rank_points & winner_rank_points<=6700 ~ "med", winner_rank_points<3300~"low"))%>%
+  group_by(winner_name,tourney_name,year,surface,
+           country,winner_age,winner_rank,
+           winner_rank_points,rank_point_cat)%>%
+  summarize(mean_age=mean(winner_age,na.rm=T), 
+            sd_age=sd(winner_age,na.rm = T))%>%glimpse()
+```
+
+
+## Visualizing Data
+
+I seperated the graphs and included code so it would look neater:
+
+```{r}
+#correlation heatmap
+library(ggplot2)
+alldata<-tidy_matches
+wim<-filter(alldata, tourney_name=="Wimbledon")%>%select(14,29,33,28,34,35,27,32,30)
+
+wim%>% select_if(is.numeric)%>%cor%>%as.data.frame%>%
+  rownames_to_column%>%pivot_longer(-1)%>%ggplot(aes(rowname,name,fill=value))+geom_tile()+geom_text(aes(label=round(value,2)))+
+  xlab("")+ylab("")+
+  scale_fill_gradient2(low="red", high="purple")+
+  theme(axis.text=element_text(angle = 50,hjust = 1))+
+  ggtitle("WTA Winner Match Performance at Wimbledon")
+```
+From the correlation heat map created of the WTA Match Performace statistic during Wimbeldon matches, there's a correlation with each winner's initial starting point. Each winner had a strong correlation between their service point being that being thir first ball in. This makes sense because the winner first point, whether that be won through an ace or is just their first serve, correlates negitively with the amount of double faults performed. 
+
+```{r}
+#Scatterplot
+ggplot(data=wtaplayers, aes(x=winner_age,y=winner_rank))+
+  geom_point(size=2, aes(color=country, size=winner_rank_points))+theme_light()+
+  scale_x_continuous(breaks=scales::pretty_breaks(n=10))+
+  scale_y_continuous(breaks=scales::pretty_breaks(n=10))+
+  ggtitle("Player Seed per Country")
+```
+I just thought it would be interesting to look at player seed, in relation to age by country from the complete data and see if certain countries tend to produce young high ranking players. Player seed and age regardless of the country tends to stay around the median age range. The highest age vs. rank outlier we see is Serena Williams which comes as no surprise as she's the oldest woman to hold a number one ranking over the course of many years. 
+```{r}
+#Barplot
+ace<-filter(alldata, tourney_name=="Wimbledon")%>%select(10,8,14,29,33,28,34,35,27,32,30)
+
+  
+ggplot(alldata, aes(x=w_ace,y=w_df,fill=surface))+
+  geom_bar(stat = "summary", fun.y="mean")+
+  geom_errorbar(stat = "summary")+theme_minimal()+
+ ggtitle("Aces vs Double Faults")
+
+```
+It's a common fact for many tennis spectators and players that the court surface you play on affects the bounce of the ball and ,depending on the strength of your swing, can quicken the life span of the ball making it become "flat". I thought it would be interesting to analyze if the amount of aces winners made versus the amount of double faults (two unsuccessul serve attempts) were impacted by the court the winners played on. The graph shows you have more aces on hard surface courts versus clay which aligns with the idea that the different courts give the oppenent ample time to return a serve (no longer rendering it an ace).
+
+```{r}
+#Dimensionality Reduction
+library(cluster)
+library(GGally)
+
+wim%>%select_if(is.numeric)%>%scale%>%cov%>% round(2)
+wim=data.frame(scale(wim))
+ggplot(wim, aes(x = w_svpt, y = w_1stIn)) + geom_point() + coord_fixed()
+
+```
